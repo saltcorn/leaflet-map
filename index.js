@@ -110,6 +110,15 @@ const get_state_fields = async table_id => {
     return sf;
   });
 };
+const mkMap = (points, id) => {
+  const iniloc = JSON.stringify(points[0][0]);
+  return `var points = ${JSON.stringify(points)};
+var map = L.map('${id}').setView(${iniloc}, 11);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+}).addTo(map);
+map.fitBounds(points.map(pt=>pt[0]));`;
+};
 
 const run = async (
   table_id,
@@ -131,8 +140,6 @@ const run = async (
 
   if (popresps.length === 0) return div("No locations");
 
-  const row0 = popresps[0].row;
-  const iniloc = `[${row0[latitude_field]}, ${row0[longtitude_field]}]`;
   const the_data = popresps.map(({ html, row }) => [
     [row[latitude_field], row[longtitude_field]],
     html
@@ -141,17 +148,13 @@ const run = async (
     div({ id, style: `height:${height}px;` }) +
     script(
       domReady(`
-var points = ${JSON.stringify(the_data)};
-var map = L.map('${id}').setView(${iniloc}, 11);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-}).addTo(map);
+${mkMap(the_data, id)}
 points.forEach(pt=>{
   L.marker(pt[0]).addTo(map)
     .bindPopup(pt[1], {maxWidth: ${popup_width + 5}, minWidth: ${popup_width -
         5}});
 });
-map.fitBounds(points.map(pt=>pt[0]))
+
 `)
     )
   );
