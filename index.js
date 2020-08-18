@@ -11,7 +11,7 @@ const Workflow = require("@saltcorn/data/models/workflow");
 const Table = require("@saltcorn/data/models/table");
 const Form = require("@saltcorn/data/models/form");
 const Field = require("@saltcorn/data/models/field");
-
+const { stateFieldsToWhere } = require("@saltcorn/data/plugin-helper");
 const headers = [
   {
     script: "https://unpkg.com/leaflet@1.6.0/dist/leaflet.js",
@@ -46,8 +46,9 @@ const configuration_workflow = () =>
               {
                 name: "popup_view",
                 label: "Popup view",
+                sublabel: "Blank for no popup",
                 type: "String",
-                required: true,
+                required: false,
                 attributes: {
                   options: popup_view_opts.join()
                 }
@@ -128,36 +129,59 @@ const run = async (
   extraArgs
 ) => {
   const id = `map${Math.round(Math.random() * 100000)}`;
-  const popview = await View.findOne({ name: popup_view });
-  if (!popview)
-    return div(
-      { class: "alert alert-danger" },
-      "Leaflet map incorrectly configured. Cannot find view: ",
-      popup_view
-    );
+  if (popup_view) {
+    const popview = await View.findOne({ name: popup_view });
+    if (!popview)
+      return div(
+        { class: "alert alert-danger" },
+        "Leaflet map incorrectly configured. Cannot find view: ",
+        popup_view
+      );
 
-  const popresps = await popview.runMany(state, extraArgs);
+    const popresps = await popview.runMany(state, extraArgs);
 
-  if (popresps.length === 0) return div("No locations");
+    if (popresps.length === 0) return div("No locations");
 
-  const the_data = popresps.map(({ html, row }) => [
-    [row[latitude_field], row[longtitude_field]],
-    html
-  ]);
-  return (
-    div({ id, style: `height:${height}px;` }) +
-    script(
-      domReady(`
+    const the_data = popresps.map(({ html, row }) => [
+      [row[latitude_field], row[longtitude_field]],
+      html
+    ]);
+    return (
+      div({ id, style: `height:${height}px;` }) +
+      script(
+        domReady(`
 ${mkMap(the_data, id)}
 points.forEach(pt=>{
   L.marker(pt[0]).addTo(map)
     .bindPopup(pt[1], {maxWidth: ${popup_width + 5}, minWidth: ${popup_width -
-        5}});
+          5}});
 });
 
 `)
-    )
-  );
+      )
+    );
+  } else {
+    const tbl = await Table.findOne({ id: table_id });
+    const fields = await tbl.getFields();
+    const qstate = await stateFieldsToWhere({ fields, state });
+    const rows = await tbl.getRows(qstate);
+    if (rows.length === 0) return div("No locations");
+
+    const points = rows.map(row => [
+      [row[latitude_field], row[longtitude_field]]
+    ]);
+    return (
+      div({ id, style: `height:${height}px;` }) +
+      script(
+        domReady(`
+${mkMap(points, id)}
+points.forEach(pt=>{
+  L.marker(pt[0]).addTo(map);
+});
+`)
+      )
+    );
+  }
 };
 module.exports = {
   sc_plugin_api_version: 1,
