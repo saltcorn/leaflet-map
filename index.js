@@ -88,7 +88,6 @@ const configuration_workflow = () =>
                 required: true,
                 default: 300
               },
-              ,
               {
                 name: "popup_width",
                 label: "Popup width in px",
