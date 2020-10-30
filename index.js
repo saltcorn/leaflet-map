@@ -95,6 +95,11 @@ const configuration_workflow = () =>
                 required: true,
                 default: 300,
               },
+              {
+                name: "rows_per_page",
+                label: "Max rows per page",
+                type: "Integer",
+              },
             ],
           });
         },
@@ -130,7 +135,14 @@ map.fitBounds(points.map(pt=>pt[0]));`;
 const run = async (
   table_id,
   viewname,
-  { popup_view, latitude_field, longtitude_field, height, popup_width },
+  {
+    popup_view,
+    latitude_field,
+    longtitude_field,
+    height,
+    popup_width,
+    rows_per_page,
+  },
   state,
   extraArgs
 ) => {
@@ -143,8 +155,9 @@ const run = async (
         "Leaflet map incorrectly configured. Cannot find view: ",
         popup_view
       );
-
-    const popresps = await popview.runMany(state, extraArgs);
+    const extraArg = { ...extraArgs };
+    if (rows_per_page && !state._pagesize) extraArg.limit = rows_per_page;
+    const popresps = await popview.runMany(state, extraArg);
 
     if (popresps.length === 0) return div("No locations");
 
