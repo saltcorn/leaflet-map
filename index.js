@@ -122,8 +122,15 @@ const get_state_fields = async (table_id) => {
     }),
   ];
 };
-const mkMap = (points, id) => {
-  const iniloc = JSON.stringify(points[0][0]);
+const mkMap = (points0, id) => {
+  const points = points0.filter(
+    (p) => typeof p[0][0] === "number" && typeof p[0][1] === "number"
+  );
+  const npts = points.length;
+  const iniloc =
+    npts > 0
+      ? JSON.stringify(points[0][0])
+      : [51.5651283, -0.14468174585635246];
   return `var points = ${JSON.stringify(points)};
 var map = L.map('${id}').setView(${iniloc}, 11);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
