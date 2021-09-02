@@ -32,6 +32,7 @@ const configuration_workflow = () =>
         name: "views",
         form: async (context) => {
           const table = await Table.findOne({ id: context.table_id });
+          const table2 = await Table.findOne({ id: context.table_id2 });
           const fields = await table.getFields();
 
           const popup_views = await View.find_table_views_where(
@@ -109,6 +110,21 @@ const configuration_workflow = () =>
 
 const get_state_fields = async (table_id) => {
   const table_fields = await Field.find({ table_id });
+  return [
+    {
+      name: "id",
+      type: "Integer",
+      required: false,
+    },
+    ...table_fields.map((f) => {
+      const sf = new Field(f);
+      sf.required = false;
+      return sf;
+    }),
+  ];
+};
+const get_state_fields2 = async (table_id2) => {
+  const table_fields = await Field.find({ table_id2 });
   return [
     {
       name: "id",
@@ -229,6 +245,7 @@ const renderRows = async (
         ),
       ];
     const poptable = await Table.findOne({ id: popview.table_id });
+    const poptable2 = await Table.findOne({ id: popview.table_id2 });
     const rendered = await popview.viewtemplateObj.renderRows(
       poptable,
       popview.name,
@@ -285,6 +302,7 @@ module.exports = {
       name: "Leaflet map",
       display_state_form: false,
       get_state_fields,
+      get_state_fields2,
       configuration_workflow,
       run,
       renderRows,
