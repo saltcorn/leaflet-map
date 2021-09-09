@@ -14,14 +14,10 @@ const Field = require("@saltcorn/data/models/field");
 const { stateFieldsToWhere } = require("@saltcorn/data/plugin-helper");
 const headers = [
   {
-    script: "https://unpkg.com/leaflet@1.6.0/dist/leaflet.js",
-    integrity:
-      "sha512-gZwIG9x3wUXg2hdXF6+rVkLF/0Vi9U8D2Ntg4Ga5I5BZpVkVxlJWbSQtXPSiUTtC0TjtGOmxa1AJPuV0CPthew==",
+    script: "/plugins/public/leaflet-map/leaflet.js"
   },
   {
-    css: "https://unpkg.com/leaflet@1.6.0/dist/leaflet.css",
-    integrity:
-      "sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ==",
+    css: "/plugins/public/leaflet-map/leaflet.css"
   },
 ];
 
