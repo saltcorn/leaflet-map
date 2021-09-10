@@ -14,10 +14,10 @@ const Field = require("@saltcorn/data/models/field");
 const { stateFieldsToWhere } = require("@saltcorn/data/plugin-helper");
 const headers = [
   {
-    script: "/plugins/public/leaflet-map/leaflet.js"
+    script: "/plugins/public/leaflet-map/leaflet.js",
   },
   {
-    css: "/plugins/public/leaflet-map/leaflet.css"
+    css: "/plugins/public/leaflet-map/leaflet.css",
   },
 ];
 
@@ -276,6 +276,7 @@ points.forEach(pt=>{
 module.exports = {
   sc_plugin_api_version: 1,
   headers,
+  plugin_name: "leaflet-map",
   viewtemplates: [
     {
       name: "Leaflet map",
