@@ -26,5 +26,5 @@ module.exports = {
   sc_plugin_api_version: 1,
   headers,
   plugin_name: "leaflet-map",
-  viewtemplates: [require("./map")],
+  viewtemplates: [require("./map"), require("./multi-table-map")],
 };
