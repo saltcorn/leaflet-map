@@ -1,6 +1,6 @@
 {
   "name": "@saltcorn/leaflet-map",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Leaflet map view templates",
   "main": "index.js",
   "dependencies": {
