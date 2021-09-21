@@ -70,6 +70,20 @@ const configuration_workflow = () =>
                 },
               },
               {
+                name: "icon",
+                label: "Icon field",
+                type: "String",
+                sublabel:
+                  "The table need a fields of type 'File' for the icon.",
+                required: false,
+                attributes: {
+                  options: fields
+                    .filter((f) => f.reftable_name === "_sc_files")
+                    .map((f) => f.name)
+                    .join(),
+                },
+              },
+              {
                 name: "height",
                 label: "Height in px",
                 type: "Integer",
@@ -134,6 +148,7 @@ const run = async (
     popup_view,
     latitude_field,
     longtitude_field,
+    icon,
     height,
     popup_width,
     rows_per_page,
@@ -159,6 +174,7 @@ const run = async (
     const the_data = popresps.map(({ html, row }) => [
       [row[latitude_field], row[longtitude_field]],
       html,
+      icon ? row[icon] : undefined,
     ]);
     return (
       div({ id, style: `height:${height}px;` }) +
@@ -166,7 +182,12 @@ const run = async (
         domReady(`
 ${mkMap(the_data, id)}
 points.forEach(pt=>{
-  L.marker(pt[0]).addTo(map)
+  L.marker(pt[0], pt[2] ? {icon: L.icon({
+    iconUrl: '/files/serve/'+pt[2],
+    iconSize: [56, 60],
+    iconAnchor: [40, 59],
+    popupAnchor: [0, 0]
+  })}: {}).addTo(map)
     .bindPopup(pt[1], {maxWidth: ${popup_width + 5}, minWidth: ${
           popup_width - 5
         }});
@@ -184,6 +205,8 @@ points.forEach(pt=>{
 
     const points = rows.map((row) => [
       [row[latitude_field], row[longtitude_field]],
+      null,
+      icon ? row[icon] : undefined,
     ]);
     return (
       div({ id, style: `height:${height}px;` }) +
@@ -191,7 +214,12 @@ points.forEach(pt=>{
         domReady(`
 ${mkMap(points, id)}
 points.forEach(pt=>{
-  L.marker(pt[0]).addTo(map);
+  L.marker(pt[0], pt[2] ? {icon: L.icon({
+    iconUrl: '/files/serve/'+pt[2],
+    iconSize: [56, 60],
+    iconAnchor: [40, 59],
+    popupAnchor: [0, 0]
+  })}: {}).addTo(map);
 });
 `)
       )
