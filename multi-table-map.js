@@ -33,6 +33,7 @@ const configuration_workflow = () =>
               table.id,
               ({ viewtemplate, viewrow }) => viewtemplate.runMany
             );
+            popup_views.unshift({name: ""});
             popview_options[table.name] = popup_views.map((v) => v.name);
           }
 
@@ -55,7 +56,6 @@ const configuration_workflow = () =>
                     label: "Popup view",
                     sublabel: "Blank for no popup",
                     type: "String",
-                    required: false,
                     attributes: {
                       calcOptions: ["table_name", popview_options],
                     },
@@ -131,7 +131,8 @@ const run = async (
   viewname,
   { map_tables, popup_width, height },
   state,
-  extraArgs
+  extraArgs,
+  queriesObj
 ) => {
   const id = `map${Math.round(Math.random() * 100000)}`;
   const points = [];
@@ -160,11 +161,9 @@ const run = async (
         ])
       );
     } else {
-      const tbl = await Table.findOne(table_name);
-      const fields = await tbl.getFields();
-      const qstate = await stateFieldsToWhere({ fields, state });
-      const rows = await tbl.getRows(qstate);
-
+      const rows = queriesObj?.get_rows_query
+        ? await queriesObj.get_rows_query(state, table_name)
+        : await getRowsQueryImpl(state, table_name);
       points.push(
         ...rows.map((row) => [[row[latitude_field], row[longtitude_field]]])
       );
@@ -192,11 +191,23 @@ const run = async (
   );
 };
 
+const getRowsQueryImpl = async (state, table_name) => {
+  const tbl = await Table.findOne(table_name);
+  const fields = await tbl.getFields();
+  const qstate = await stateFieldsToWhere({ fields, state });
+  return await tbl.getRows(qstate);
+};
+
 module.exports = {
   name: "Leaflet map - multi-table",
   display_state_form: false,
   get_state_fields,
   configuration_workflow,
   run,
+  queries: ({}) => ({
+    async get_rows_query(state, table_name) {
+      return await getRowsQueryImpl(state, table_name);
+    },
+  }),
   tableless: true,
 };

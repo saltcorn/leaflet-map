@@ -154,7 +154,8 @@ const run = async (
     rows_per_page,
   },
   state,
-  extraArgs
+  extraArgs,
+  queriesObj
 ) => {
   const id = `map${Math.round(Math.random() * 100000)}`;
   if (popup_view) {
@@ -197,10 +198,9 @@ points.forEach(pt=>{
       )
     );
   } else {
-    const tbl = await Table.findOne({ id: table_id });
-    const fields = await tbl.getFields();
-    const qstate = await stateFieldsToWhere({ fields, state });
-    const rows = await tbl.getRows(qstate);
+    const rows = queriesObj?.get_rows_query
+      ? await queriesObj.get_rows_query(state)
+      : await getRowsQueryImpl(state, table_id);
     if (rows.length === 0) return div("No locations");
 
     const points = rows.map((row) => [
@@ -293,11 +293,23 @@ points.forEach(pt=>{
   }
 };
 
+const getRowsQueryImpl = async (state, table_id) => {
+  const tbl = await Table.findOne({ id: table_id });
+  const fields = await tbl.getFields();
+  const qstate = await stateFieldsToWhere({ fields, state });
+  return await tbl.getRows(qstate);
+};
+
 module.exports = {
   name: "Leaflet map",
   display_state_form: false,
   get_state_fields,
   configuration_workflow,
   run,
+  queries: ({ table_id }) => ({
+    async get_rows_query(state) {
+      return await getRowsQueryImpl(state, table_id);
+    },
+  }),
   renderRows,
 };
