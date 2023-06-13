@@ -33,6 +33,7 @@ const configuration_workflow = () =>
               table.id,
               ({ viewtemplate, viewrow }) => viewtemplate.runMany
             );
+            popup_views.unshift({name: ""});
             popview_options[table.name] = popup_views.map((v) => v.name);
           }
 
@@ -55,7 +56,6 @@ const configuration_workflow = () =>
                     label: "Popup view",
                     sublabel: "Blank for no popup",
                     type: "String",
-                    required: false,
                     attributes: {
                       calcOptions: ["table_name", popview_options],
                     },
