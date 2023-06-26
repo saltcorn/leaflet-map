@@ -13,6 +13,8 @@ const Form = require("@saltcorn/data/models/form");
 const Field = require("@saltcorn/data/models/field");
 const { stateFieldsToWhere } = require("@saltcorn/data/plugin-helper");
 
+const isNode = typeof window === "undefined";
+
 const configuration_workflow = () =>
   new Workflow({
     steps: [
@@ -191,7 +193,24 @@ points.forEach(pt=>{
   })}: {}).addTo(map)
     .bindPopup(pt[1], {maxWidth: ${popup_width + 5}, minWidth: ${
           popup_width - 5
-        }});
+        }}) ${
+          isNode
+            ? ""
+            : `
+        .on('click', function() {
+          $("[mobile-img-path]").each(async function () {
+            if (parent.loadEncodedFile) {
+              const theImg = $(this);
+              const src = theImg.attr("src");
+              if (!src || !src.startsWith("data:image")) {
+                const fileId = theImg.attr("mobile-img-path");
+                const base64Encoded = await parent.loadEncodedFile(fileId);
+                this.src = base64Encoded;
+              }
+            }
+          });
+        })`
+        };
 });
 
 `)

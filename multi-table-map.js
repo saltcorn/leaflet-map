@@ -15,6 +15,8 @@ const FieldRepeat = require("@saltcorn/data/models/fieldrepeat");
 
 const { stateFieldsToWhere } = require("@saltcorn/data/plugin-helper");
 
+const isNode = typeof window === "undefined";
+
 const configuration_workflow = () =>
   new Workflow({
     steps: [
@@ -33,7 +35,7 @@ const configuration_workflow = () =>
               table.id,
               ({ viewtemplate, viewrow }) => viewtemplate.runMany
             );
-            popup_views.unshift({name: ""});
+            popup_views.unshift({ name: "" });
             popview_options[table.name] = popup_views.map((v) => v.name);
           }
 
@@ -184,7 +186,24 @@ const run = async (
           if(pt[1])
             marker.bindPopup(pt[1], {maxWidth: ${popup_width + 5}, minWidth: ${
         popup_width - 5
-      }});
+      }})${
+        isNode
+          ? ""
+          : `
+            .on('click', function() {
+              $("[mobile-img-path]").each(async function () {
+                if (parent.loadEncodedFile) {
+                  const theImg = $(this);
+                  const src = theImg.attr("src");
+                  if (!src || !src.startsWith("data:image")) {
+                    const fileId = theImg.attr("mobile-img-path");
+                    const base64Encoded = await parent.loadEncodedFile(fileId);
+                    this.src = base64Encoded;
+                  }
+                }
+              });
+            })`
+      };
         });
         map.fitBounds(points.map(pt=>pt[0]));`)
     )
