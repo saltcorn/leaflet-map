@@ -123,6 +123,20 @@ const configuration_workflow = () =>
           ).filter((view) => view.name !== context.viewname);
           return new Form({
             fields: otherMaps.map((v) => ({ name: v.name, type: "Bool" })),
+            validator: (values) => {
+              const tableIds = new Set();
+              for (const [name, val] of Object.entries(values)) {
+                if (val === true) {
+                  const view = View.findOne({ name: name });
+                  if (view) {
+                    if (tableIds.has(view.table_id))
+                      return `The table of '${view.name}' is already in use.`;
+                    else tableIds.add(view.table_id);
+                  }
+                }
+              }
+              return values;
+            },
           });
         },
       },
