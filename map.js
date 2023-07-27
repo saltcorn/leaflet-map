@@ -12,6 +12,7 @@ const Table = require("@saltcorn/data/models/table");
 const Form = require("@saltcorn/data/models/form");
 const Field = require("@saltcorn/data/models/field");
 const { stateFieldsToWhere } = require("@saltcorn/data/plugin-helper");
+const { mergeConnectedObjects } = require("@saltcorn/data/utils")
 
 const isNode = typeof window === "undefined";
 
@@ -357,6 +358,23 @@ const getRowsQueryImpl = async (state, table_id) => {
   return await tbl.getRows(qstate);
 };
 
+const connectedObjects = async ({ viewname, popup_view, ...rest }) => {
+  let result = { embeddedViews: [] };
+  if (popup_view) {
+    const popupView = View.findOne({ name: popup_view });
+    if (popupView) result.embeddedViews.push(popupView);
+  }
+  const otherMaps = (await View.find({ viewtemplate: "Leaflet map" })).filter(
+    (view) => view.name !== viewname && rest[view.name]
+  );
+  for (const otherMap of otherMaps) {
+    if (otherMap.connected_objects) {
+      result = mergeConnectedObjects(result, await otherMap.connected_objects()) 
+    }
+  }
+  return result;
+};
+
 module.exports = {
   name: "Leaflet map",
   display_state_form: false,
@@ -369,4 +387,5 @@ module.exports = {
     },
   }),
   renderRows,
+  connectedObjects,
 };
