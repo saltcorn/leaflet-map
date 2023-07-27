@@ -12,7 +12,7 @@ const Table = require("@saltcorn/data/models/table");
 const Form = require("@saltcorn/data/models/form");
 const Field = require("@saltcorn/data/models/field");
 const { stateFieldsToWhere } = require("@saltcorn/data/plugin-helper");
-const { mergeConnectedObjects } = require("@saltcorn/data/utils")
+const { mergeConnectedObjects } = require("@saltcorn/data/utils");
 
 const isNode = typeof window === "undefined";
 
@@ -111,6 +111,12 @@ const configuration_workflow = () =>
       },
       {
         name: "Other Maps",
+        onlyWhen: async (context) => {
+          const otherMaps = (
+            await View.find({ viewtemplate: "Leaflet map" })
+          ).filter((view) => view.name !== context.viewname);
+          return otherMaps.length > 0;
+        },
         form: async (context) => {
           const otherMaps = (
             await View.find({ viewtemplate: "Leaflet map" })
@@ -358,8 +364,8 @@ const getRowsQueryImpl = async (state, table_id) => {
   return await tbl.getRows(qstate);
 };
 
-const connectedObjects = async ({ viewname, popup_view, ...rest }) => {
-  let result = { embeddedViews: [] };
+const connectedObjects = async ({ viewname, popup_view, ...rest } = {}) => {
+  let result = { embeddedViews: [], tables: [] };
   if (popup_view) {
     const popupView = View.findOne({ name: popup_view });
     if (popupView) result.embeddedViews.push(popupView);
@@ -368,9 +374,19 @@ const connectedObjects = async ({ viewname, popup_view, ...rest }) => {
     (view) => view.name !== viewname && rest[view.name]
   );
   for (const otherMap of otherMaps) {
-    if (otherMap.connected_objects) {
-      result = mergeConnectedObjects(result, await otherMap.connected_objects()) 
+    if (
+      otherMap.configuration?.popup_view &&
+      !result.embeddedViews.find(
+        (view) => view.name === otherMap.configuration.popup_view
+      )
+    ) {
+      const otherPopup = View.findOne({
+        name: otherMap.configuration.popup_view,
+      });
+      if (otherPopup) result.embeddedViews.push(otherPopup);
     }
+    const otherTable = Table.findOne({ id: otherMap.table_id });
+    if (otherTable) result.tables.push(otherTable);
   }
   return result;
 };
