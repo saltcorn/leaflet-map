@@ -138,6 +138,7 @@ const run = async (
 ) => {
   const id = `map${Math.round(Math.random() * 100000)}`;
   const points = [];
+  const cache = {};
   for (const {
     table_name,
     popup_view,
@@ -154,7 +155,9 @@ const run = async (
         );
       const extraArg = { ...extraArgs };
 
-      const popresps = await popview.runMany(state, extraArg);
+      if (!cache[popup_view])
+        cache[popup_view] = await popview.runMany(state, extraArg);
+      const popresps = cache[popup_view];
 
       points.push(
         ...popresps.map(({ html, row }) => [
