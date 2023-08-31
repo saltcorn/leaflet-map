@@ -12,6 +12,7 @@ const Table = require("@saltcorn/data/models/table");
 const Form = require("@saltcorn/data/models/form");
 const Field = require("@saltcorn/data/models/field");
 const { stateFieldsToWhere } = require("@saltcorn/data/plugin-helper");
+const { mergeConnectedObjects } = require("@saltcorn/data/utils");
 
 const isNode = typeof window === "undefined";
 
@@ -108,6 +109,37 @@ const configuration_workflow = () =>
           });
         },
       },
+      {
+        name: "Other Maps",
+        onlyWhen: async (context) => {
+          const otherMaps = (
+            await View.find({ viewtemplate: "Leaflet map" })
+          ).filter((view) => view.name !== context.viewname);
+          return otherMaps.length > 0;
+        },
+        form: async (context) => {
+          const otherMaps = (
+            await View.find({ viewtemplate: "Leaflet map" })
+          ).filter((view) => view.name !== context.viewname);
+          return new Form({
+            fields: otherMaps.map((v) => ({ name: v.name, type: "Bool" })),
+            validator: (values) => {
+              const tableIds = new Set();
+              for (const [name, val] of Object.entries(values)) {
+                if (val === true) {
+                  const view = View.findOne({ name: name });
+                  if (view) {
+                    if (tableIds.has(view.table_id))
+                      return `The table of '${view.name}' is already in use.`;
+                    else tableIds.add(view.table_id);
+                  }
+                }
+              }
+              return values;
+            },
+          });
+        },
+      },
     ],
   });
 
@@ -143,6 +175,77 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 map.fitBounds(points.map(pt=>pt[0]));`;
 };
 
+const mkPoints = async (
+  latitudeField,
+  longitudeField,
+  popupView,
+  table_id,
+  extraArg,
+  state,
+  queriesObj
+) => {
+  if (popupView) {
+    const popview = await View.findOne({ name: popupView });
+    if (!popview)
+      return div(
+        { class: "alert alert-danger" },
+        "Leaflet map incorrectly configured. Cannot find view: ",
+        popupView
+      );
+    const popresps = await popview.runMany(state, extraArg);
+    return popresps.map(({ html, row }) => [
+      [row[latitudeField], row[longitudeField]],
+      html,
+    ]);
+  } else {
+    const rows = queriesObj?.get_rows_query
+      ? await queriesObj.get_rows_query(state, table_id)
+      : await getRowsQueryImpl(state, table_id);
+    return rows.map((row) => [[row[latitudeField], row[longitudeField]]]);
+  }
+};
+
+const addOtherPoints = async (
+  points,
+  otherMaps,
+  extraArgs,
+  state,
+  queriesObj
+) => {
+  for (const otherMap of otherMaps) {
+    const { latitude_field, longtitude_field, popup_view } =
+      otherMap.configuration;
+    points.push(
+      ...(await mkPoints(
+        latitude_field,
+        longtitude_field,
+        popup_view,
+        otherMap.table_id,
+        { ...extraArgs },
+        state,
+        queriesObj
+      ))
+    );
+  }
+};
+
+const mobileImgLoader = () => {
+  return `
+    .on('click', function() {
+      $("[mobile-img-path]").each(async function () {
+        if (parent.loadEncodedFile) {
+          const theImg = $(this);
+          const src = theImg.attr("src");
+          if (!src || !src.startsWith("data:image")) {
+            const fileId = theImg.attr("mobile-img-path");
+            const base64Encoded = await parent.loadEncodedFile(fileId);
+            this.src = base64Encoded;
+          }
+        }
+      });
+    })`;
+};
+
 const run = async (
   table_id,
   viewname,
@@ -154,36 +257,36 @@ const run = async (
     height,
     popup_width,
     rows_per_page,
+    ...rest
   },
   state,
   extraArgs,
   queriesObj
 ) => {
   const id = `map${Math.round(Math.random() * 100000)}`;
-  if (popup_view) {
-    const popview = await View.findOne({ name: popup_view });
-    if (!popview)
-      return div(
-        { class: "alert alert-danger" },
-        "Leaflet map incorrectly configured. Cannot find view: ",
-        popup_view
-      );
-    const extraArg = { ...extraArgs };
-    if (rows_per_page && !state._pagesize) extraArg.limit = rows_per_page;
-    const popresps = await popview.runMany(state, extraArg);
+  const points = [];
+  points.push(
+    ...(await mkPoints(
+      latitude_field,
+      longtitude_field,
+      popup_view,
+      table_id,
+      { ...extraArgs },
+      state,
+      queriesObj
+    ))
+  );
+  const otherMaps = (await View.find({ viewtemplate: "Leaflet map" })).filter(
+    (view) => view.name !== viewname && rest[view.name]
+  );
+  await addOtherPoints(points, otherMaps, extraArgs, state, queriesObj);
+  if (points.length === 0) return div("No locations");
 
-    if (popresps.length === 0) return div("No locations");
-
-    const the_data = popresps.map(({ html, row }) => [
-      [row[latitude_field], row[longtitude_field]],
-      html,
-      icon ? row[icon] : undefined,
-    ]);
-    return (
-      div({ id, style: `height:${height}px;` }) +
-      script(
-        domReady(`
-${mkMap(the_data, id)}
+  return (
+    div({ id, style: `height:${height}px;` }) +
+    script(
+      domReady(`
+${mkMap(points, id)}
 points.forEach(pt=>{
   L.marker(pt[0], pt[2] ? {icon: L.icon({
     iconUrl: '/files/serve/'+pt[2],
@@ -192,58 +295,13 @@ points.forEach(pt=>{
     popupAnchor: [0, 0]
   })}: {}).addTo(map)
     .bindPopup(pt[1], {maxWidth: ${popup_width + 5}, minWidth: ${
-          popup_width - 5
-        }}) ${
-          isNode
-            ? ""
-            : `
-        .on('click', function() {
-          $("[mobile-img-path]").each(async function () {
-            if (parent.loadEncodedFile) {
-              const theImg = $(this);
-              const src = theImg.attr("src");
-              if (!src || !src.startsWith("data:image")) {
-                const fileId = theImg.attr("mobile-img-path");
-                const base64Encoded = await parent.loadEncodedFile(fileId);
-                this.src = base64Encoded;
-              }
-            }
-          });
-        })`
-        };
+        popup_width - 5
+      }}) ${isNode ? "" : mobileImgLoader()};
 });
 
 `)
-      )
-    );
-  } else {
-    const rows = queriesObj?.get_rows_query
-      ? await queriesObj.get_rows_query(state)
-      : await getRowsQueryImpl(state, table_id);
-    if (rows.length === 0) return div("No locations");
-
-    const points = rows.map((row) => [
-      [row[latitude_field], row[longtitude_field]],
-      null,
-      icon ? row[icon] : undefined,
-    ]);
-    return (
-      div({ id, style: `height:${height}px;` }) +
-      script(
-        domReady(`
-${mkMap(points, id)}
-points.forEach(pt=>{
-  L.marker(pt[0], pt[2] ? {icon: L.icon({
-    iconUrl: '/files/serve/'+pt[2],
-    iconSize: [56, 60],
-    iconAnchor: [40, 59],
-    popupAnchor: [0, 0]
-  })}: {}).addTo(map);
-});
-`)
-      )
-    );
-  }
+    )
+  );
 };
 
 const renderRows = async (
@@ -286,7 +344,8 @@ points.forEach(pt=>{
   L.marker(pt[0]).addTo(map)
     .bindPopup(pt[1], {maxWidth: ${popup_width + 5}, minWidth: ${
             popup_width - 5
-          }});
+          }})
+    ${isNode ? "" : mobileImgLoader()};
 });
 
 `)
@@ -319,16 +378,44 @@ const getRowsQueryImpl = async (state, table_id) => {
   return await tbl.getRows(qstate);
 };
 
+const connectedObjects = async ({ viewname, popup_view, ...rest } = {}) => {
+  let result = { embeddedViews: [], tables: [] };
+  if (popup_view) {
+    const popupView = View.findOne({ name: popup_view });
+    if (popupView) result.embeddedViews.push(popupView);
+  }
+  const otherMaps = (await View.find({ viewtemplate: "Leaflet map" })).filter(
+    (view) => view.name !== viewname && rest[view.name]
+  );
+  for (const otherMap of otherMaps) {
+    if (
+      otherMap.configuration?.popup_view &&
+      !result.embeddedViews.find(
+        (view) => view.name === otherMap.configuration.popup_view
+      )
+    ) {
+      const otherPopup = View.findOne({
+        name: otherMap.configuration.popup_view,
+      });
+      if (otherPopup) result.embeddedViews.push(otherPopup);
+    }
+    const otherTable = Table.findOne({ id: otherMap.table_id });
+    if (otherTable) result.tables.push(otherTable);
+  }
+  return result;
+};
+
 module.exports = {
   name: "Leaflet map",
   display_state_form: false,
   get_state_fields,
   configuration_workflow,
   run,
-  queries: ({ table_id }) => ({
-    async get_rows_query(state) {
+  queries: ({}) => ({
+    async get_rows_query(state, table_id) {
       return await getRowsQueryImpl(state, table_id);
     },
   }),
   renderRows,
+  connectedObjects,
 };
