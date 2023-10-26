@@ -182,7 +182,8 @@ const mkPoints = async (
   table_id,
   extraArg,
   state,
-  queriesObj
+  queriesObj,
+  rows_per_page
 ) => {
   if (popupView) {
     const popview = await View.findOne({ name: popupView });
@@ -192,7 +193,10 @@ const mkPoints = async (
         "Leaflet map incorrectly configured. Cannot find view: ",
         popupView
       );
-    const popresps = await popview.runMany(state, extraArg);
+    const popresps = await popview.runMany(state, {
+      ...extraArg,
+      limit: rows_per_page,
+    });
     return popresps.map(({ html, row }) => [
       [row[latitudeField], row[longitudeField]],
       html,
@@ -213,7 +217,7 @@ const addOtherPoints = async (
   queriesObj
 ) => {
   for (const otherMap of otherMaps) {
-    const { latitude_field, longtitude_field, popup_view } =
+    const { latitude_field, longtitude_field, popup_view, rows_per_page } =
       otherMap.configuration;
     points.push(
       ...(await mkPoints(
@@ -223,7 +227,8 @@ const addOtherPoints = async (
         otherMap.table_id,
         { ...extraArgs },
         state,
-        queriesObj
+        queriesObj,
+        rows_per_page
       ))
     );
   }
@@ -273,7 +278,8 @@ const run = async (
       table_id,
       { ...extraArgs },
       state,
-      queriesObj
+      queriesObj,
+      rows_per_page
     ))
   );
   const otherMaps = (await View.find({ viewtemplate: "Leaflet map" })).filter(
