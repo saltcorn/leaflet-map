@@ -172,7 +172,16 @@ var map = L.map('${id}').setView(${iniloc}, 11);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 }).addTo(map);
-map.fitBounds(points.map(pt=>pt[0]));`;
+map.fitBounds(points.map(pt=>pt[0]));
+let prevVisibility=false;
+let observer = new IntersectionObserver(()=>{
+  const nowVisibile = $("#${id}").is(":visible")
+  if(!prevVisibility && nowVisibile) {
+    map.invalidateSize()
+  }
+  prevVisibility = nowVisibile;
+});
+observer.observe(document.querySelector("#${id}"))`;
 };
 
 const mkPoints = async (
