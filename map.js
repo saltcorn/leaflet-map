@@ -81,7 +81,10 @@ const configuration_workflow = () =>
                 required: false,
                 attributes: {
                   options: fields
-                    .filter((f) => f.reftable_name === "_sc_files")
+                    .filter(
+                      (f) =>
+                        f.reftable_name === "_sc_files" || f.type === "File"
+                    )
                     .map((f) => f.name)
                     .join(),
                 },
@@ -192,7 +195,8 @@ const mkPoints = async (
   extraArg,
   state,
   queriesObj,
-  rows_per_page
+  rows_per_page,
+  icon
 ) => {
   if (popupView) {
     const popview = await View.findOne({ name: popupView });
@@ -209,12 +213,15 @@ const mkPoints = async (
     return popresps.map(({ html, row }) => [
       [row[latitudeField], row[longitudeField]],
       html,
+      icon ? row[icon] : undefined,
     ]);
   } else {
     const rows = queriesObj?.get_rows_query
       ? await queriesObj.get_rows_query(state, table_id)
       : await getRowsQueryImpl(state, table_id);
-    return rows.map((row) => [[row[latitudeField], row[longitudeField]]]);
+    return rows.map((row) => [
+      [row[latitudeField], row[longitudeField], icon ? row[icon] : undefined],
+    ]);
   }
 };
 
@@ -226,8 +233,13 @@ const addOtherPoints = async (
   queriesObj
 ) => {
   for (const otherMap of otherMaps) {
-    const { latitude_field, longtitude_field, popup_view, rows_per_page } =
-      otherMap.configuration;
+    const {
+      latitude_field,
+      longtitude_field,
+      popup_view,
+      rows_per_page,
+      icon,
+    } = otherMap.configuration;
     points.push(
       ...(await mkPoints(
         latitude_field,
@@ -237,7 +249,8 @@ const addOtherPoints = async (
         { ...extraArgs },
         state,
         queriesObj,
-        rows_per_page
+        rows_per_page,
+        icon
       ))
     );
   }
@@ -288,7 +301,8 @@ const run = async (
       { ...extraArgs },
       state,
       queriesObj,
-      rows_per_page
+      rows_per_page,
+      icon
     ))
   );
   const otherMaps = (await View.find({ viewtemplate: "Leaflet map" })).filter(
@@ -303,8 +317,8 @@ const run = async (
       domReady(`
 ${mkMap(points, id)}
 points.forEach(pt=>{
-  L.marker(pt[0], pt[2] ? {icon: L.icon({
-    iconUrl: '/files/serve/'+pt[2],
+  L.marker(pt[0], pt[0][2] ? {icon: L.icon({
+    iconUrl: '/files/serve/'+pt[0][2],
     iconSize: [56, 60],
     iconAnchor: [40, 59],
     popupAnchor: [0, 0]
