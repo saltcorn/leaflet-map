@@ -3,10 +3,14 @@ const headers =
   features && features.deep_public_plugin_serve
     ? [
         {
-          script: "/plugins/public/leaflet-map/leaflet.js",
+          script: `/plugins/public/leaflet-map@${
+            require("./package.json").version
+          }/leaflet.js`,
         },
         {
-          css: "/plugins/public/leaflet-map/leaflet.css",
+          css: `/plugins/public/leaflet-map@${
+            require("./package.json").version
+          }/leaflet.css`,
         },
       ]
     : [
