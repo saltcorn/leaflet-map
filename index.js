@@ -1,4 +1,3 @@
-const { features } = require("@saltcorn/data/db/state");
 const headers = [
   {
     script: `/plugins/public/leaflet-map@${
