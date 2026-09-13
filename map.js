@@ -172,7 +172,7 @@ const mkMap = (points0, id) => {
       : [51.5651283, -0.14468174585635246];
   return `var points = ${JSON.stringify(points)};
 var map = L.map('${id}').setView(${iniloc}, 11);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     referrerPolicy: "strict-origin-when-cross-origin",
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 }).addTo(map);
